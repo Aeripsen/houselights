@@ -20,7 +20,7 @@ from . import db
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
 FILM_ID = CONFIG["film_id"]
-MODEL = os.environ.get("HOUSELIGHTS_MODEL", "gemini-2.5-flash")
+MODEL = os.environ.get("HOUSELIGHTS_MODEL", "gemini-3.6-flash")
 
 
 def _rows(sql):
