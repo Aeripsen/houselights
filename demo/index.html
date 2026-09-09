@@ -7,11 +7,12 @@
   :root { --bg:#0b0b0c; --panel:#141416; --ink:#f2efe6; --dim:#9a9690; --amber:#f2b134; --line:#26262a; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 Georgia, "Times New Roman", serif; }
-  #card { position:fixed; inset:0; display:flex; flex-direction:column; justify-content:center; padding:0 90px; background:var(--bg); }
-  #card h1 { font-size:64px; margin:0 0 12px; letter-spacing:.5px; }
-  #card h1 span { color:var(--amber); }
-  #card p { font-size:22px; color:var(--dim); max-width:980px; margin:6px 0; }
-  #card .stack { margin-top:28px; font:15px/1.6 ui-monospace, Consolas, monospace; color:var(--amber); }
+  .card { position:fixed; inset:0; display:flex; flex-direction:column; justify-content:center; padding:0 90px; background:var(--bg); }
+  .card h1 { font-size:64px; margin:0 0 12px; letter-spacing:.5px; }
+  .card h1 span { color:var(--amber); }
+  .card p { font-size:22px; color:var(--dim); max-width:980px; margin:6px 0; }
+  .card .stack { margin-top:28px; font:15px/1.6 ui-monospace, Consolas, monospace; color:var(--amber); }
+  #outro { display:none; }
   #stage { display:none; height:100vh; grid-template-rows:auto 1fr; }
   header { display:flex; align-items:baseline; gap:18px; padding:14px 28px; border-bottom:1px solid var(--line); }
   header b { font-size:20px; } header b span { color:var(--amber); }
@@ -21,7 +22,7 @@
   .user { color:var(--amber); font-size:20px; }
   .user::before { content:"programmer  "; color:var(--dim); font:13px ui-monospace, Consolas, monospace; letter-spacing:1px; }
   .tools { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0; }
-  .tool { font:13px ui-monospace, Consolas, monospace; color:#7fd1a8; border:1px solid #234; background:#0f1a15; padding:3px 9px; border-radius:4px; }
+  .tool { font:13px ui-monospace, Consolas, monospace; color:#7fd1a8; border:1px solid #234; background:#0f1a15; padding:3px 9px; border-radius:4px; max-width:1100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .tool::before { content:"ClickHouse  "; color:var(--dim); }
   .tool.live::before { content:"live API  "; }
   .agent { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 18px; font-size:15.5px; white-space:pre-wrap; }
@@ -32,13 +33,18 @@
 </style>
 </head>
 <body>
-<div id="card">
+<div id="card" class="card">
   <h1><span>Houselights</span></h1>
   <p>A Gemini agent, built with Google's Agent Development Kit, that reads every seat of a
      theatrical engagement out of ClickHouse and tells the film programmer what to do about it.</p>
   <p>September 2026. I tried to get seven friends into good rows for <i>The Odyssey</i> on IMAX 70mm
      in Toronto. The seat maps said no. The same data says a lot more to the exhibitor.</p>
   <div class="stack">Gemini 3.6 Flash · Google ADK (LlmAgent + SequentialAgent) · ClickHouse (MergeTree, materialized view, array functions) · 8 houses · 5,033 sessions · 50,235 seat states</div>
+</div>
+<div id="outro" class="card">
+  <h1><span>Houselights</span></h1>
+  <p>Open source, one process, ClickHouse inside.</p>
+  <p class="stack">github.com/Aeripsen/houselights</p>
 </div>
 <div id="stage">
   <header><b><span>Houselights</span></b><small id="hdr">adk web · houselights · gemini-3.6-flash · ClickHouse houselights.*</small></header>
@@ -47,10 +53,12 @@
 <div id="done"></div>
 <script>
 const API = (new URLSearchParams(location.search).get('api')) || 'http://167.99.185.172:8500';
+// Fixed segment lengths (ms) so a narration track can be laid on top: card, Q1, Q2, Q3, outro.
+const SEG = [20000, 50000, 50000, 50000, 8000];
 const SCRIPT = [
   ['houselights', 'How is The Odyssey selling across the eight 70mm houses right now, and is the run ending?'],
   ['houselights', 'At Vaughan, which rows sell first? Give me the row-by-row picture in one table.'],
-  ['houselights', 'Seven of us want to sit together in rows F to J on a weekend at Vaughan or Square One. What is left, and what should the programmer do about it?'],
+  ['houselights', 'Use find_contiguous_blocks: seven of us want to sit together in rows F to J on a weekend at Vaughan or Square One. What is left, and what should the programmer do about it?'],
 ];
 const log = document.getElementById('log');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -67,36 +75,50 @@ async function ask(app, text) {
   const sid = 's' + Math.random().toString(36).slice(2, 8);
   await fetch(`${API}/apps/${app}/users/demo/sessions/${sid}`, {method:'POST', headers:{'content-type':'application/json'}, body:'{}'});
   el('msg user', text);
-  const tools = el('tools'); const box = el('msg agent thinking', 'querying...');
+  const tools = el('tools'); const box = el('msg agent thinking', 'querying ClickHouse...');
   const t0 = Date.now();
-  const r = await fetch(`${API}/run_sse`, {method:'POST', headers:{'content-type':'application/json'},
-    body: JSON.stringify({appName:app, userId:'demo', sessionId:sid, newMessage:{role:'user', parts:[{text}]}, streaming:false})});
-  const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '', final = '';
-  while (true) {
-    const {value, done} = await reader.read(); if (done) break;
-    buf += dec.decode(value, {stream:true});
-    let i; while ((i = buf.indexOf('\n\n')) >= 0) {
-      const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
-      for (const line of chunk.split('\n')) if (line.startsWith('data:')) {
-        let ev; try { ev = JSON.parse(line.slice(5)); } catch { continue; }
-        for (const p of (ev.content && ev.content.parts) || []) {
-          if (p.functionCall) { const t = document.createElement('span'); t.className = 'tool' + (p.functionCall.name.startsWith('live') ? ' live' : ''); t.textContent = p.functionCall.name + (p.functionCall.args && Object.keys(p.functionCall.args).length ? ' ' + JSON.stringify(p.functionCall.args) : '()'); tools.appendChild(t); }
-          if (p.text && !ev.partial) final = p.text;
+  let final = '', lastText = '', err = '';
+  try {
+    const r = await fetch(`${API}/run_sse`, {method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({appName:app, userId:'demo', sessionId:sid, newMessage:{role:'user', parts:[{text}]}, streaming:false})});
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
+    while (true) {
+      const {value, done} = await reader.read(); if (done) break;
+      buf += dec.decode(value, {stream:true});
+      let i; while ((i = buf.indexOf('\n\n')) >= 0) {
+        const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+        for (const line of chunk.split('\n')) if (line.startsWith('data:')) {
+          let ev; try { ev = JSON.parse(line.slice(5)); } catch { continue; }
+          if (ev.errorMessage) err = ev.errorMessage;
+          for (const p of (ev.content && ev.content.parts) || []) {
+            if (p.functionCall) { const t = document.createElement('span'); t.className = 'tool' + (p.functionCall.name.startsWith('live') ? ' live' : ''); const a = p.functionCall.args || {}; t.textContent = p.functionCall.name + (Object.keys(a).length ? ' ' + JSON.stringify(a).slice(0, 110) : '()'); tools.appendChild(t); }
+            if (p.text) { lastText = p.text; if (!ev.partial) final = p.text; }
+          }
+          log.scrollTop = 1e9;
         }
-        log.scrollTop = 1e9;
       }
     }
-  }
-  box.className = 'msg agent'; box.innerHTML = md(final || '(no answer)');
+  } catch (e) { err = String(e); }
+  box.className = 'msg agent'; box.innerHTML = md(final || lastText || (err ? 'error: ' + err : '(no answer)'));
   const s = document.createElement('div'); s.className = 'thinking'; s.textContent = `${((Date.now()-t0)/1000).toFixed(1)}s`; box.appendChild(s);
   log.scrollTop = 1e9;
 }
 (async () => {
-  await sleep(7000);
+  const start = Date.now();
+  const until = ms => sleep(Math.max(0, start + ms - Date.now()));
+  await until(SEG[0]);
   document.getElementById('card').style.display = 'none';
   document.getElementById('stage').style.display = 'grid';
-  for (const [app, q] of SCRIPT) { await ask(app, q); await sleep(3500); if (log.children.length > 6) { log.removeChild(log.firstChild); log.removeChild(log.firstChild); log.removeChild(log.firstChild); } }
-  await sleep(4000);
+  let acc = SEG[0];
+  for (let k = 0; k < SCRIPT.length; k++) {
+    if (k > 0) { while (log.firstChild) log.removeChild(log.firstChild); }
+    await ask(SCRIPT[k][0], SCRIPT[k][1]);
+    acc += SEG[k + 1];
+    await until(acc);
+  }
+  document.getElementById('stage').style.display = 'none';
+  document.getElementById('outro').style.display = 'flex';
+  await until(acc + SEG[4]);
   document.getElementById('done').style.display = 'block';
 })();
 </script>
