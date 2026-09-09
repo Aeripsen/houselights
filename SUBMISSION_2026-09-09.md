@@ -15,7 +15,7 @@ Project details
 - About the project: the story in README.md, sections Inspiration / What it does / How I built it / Challenges / What I learned / What's next
 - Built with: python, google-adk, gemini, google-cloud, clickhouse, chdb, fastapi, uvicorn, sql, materialized-views, cineplex-api, playwright
 - Try it out links: https://github.com/Aeripsen/houselights and http://167.99.185.172:8500/
-- Video demo link: EMPTY. Needs the YouTube URL (see below).
+- Video demo link: https://youtu.be/yYp5YB7KAfs (uploaded by Sepehr by drag-and-drop, set Public 4:57 PM)
 
 Additional info
 - Submitter type Individual, organization N/A, government employee No, Canada, Ontario, project New
@@ -27,7 +27,9 @@ Additional info
 - Other tools: ClickHouse via chdb (MergeTree, SummingMergeTree materialized view, file() + JSONEachRow, array functions), clickhouse-connect path for ClickHouse Cloud, Python 3.12, Cineplex public API, Playwright + ffmpeg
 - First time using ClickHouse: Yes. IBM / Grafana / Parallel / Replit: N/A
 
-## What is left (his hands)
+## Submitted 2026-09-09 4:55 PM EDT. Devpost said: Project submitted! Continue to edit until 5:00 PM EDT.
+
+## What was left before that (done)
 
 1. Upload demo/houselights_demo.mp4 to YouTube, visibility Public.
    Title: Houselights: a Gemini agent over seat-level cinema data in ClickHouse (Agentic Cinema hackathon)
