@@ -24,7 +24,7 @@ SCHEMA = [
     """CREATE TABLE IF NOT EXISTS houselights.seats (
         snapshot_ts DateTime, theatre_id LowCardinality(String), theatre_name String,
         session_id UInt32, session_start DateTime, row LowCardinality(String), seat String,
-        seat_id UInt32, col Nullable(UInt16), seat_type LowCardinality(String),
+        seat_id String, col Nullable(UInt16), seat_type LowCardinality(String),
         status LowCardinality(String)
     ) ENGINE = MergeTree ORDER BY (theatre_id, session_id, row, snapshot_ts)""",
     # Row-level sell-through, maintained by ClickHouse itself on every insert.
@@ -88,18 +88,26 @@ def load_new_snapshots():
         if p in done:
             continue
         path = p.replace("\\", "/")
+        # Explicit structure: no schema inference, so timestamps arrive as strings and are parsed
+        # once, the same way, on every load.
         d.exec(f"""INSERT INTO houselights.sessions
             SELECT parseDateTimeBestEffort(snapshot_ts), theatre_id, theatre_name, film_id, film,
                    session_id, parseDateTimeBestEffort(start), auditorium, experience,
-                   seats_remaining, sold_out, buy_url
-            FROM file('{path}', JSONEachRow)""")
+                   seats_remaining, toUInt8(sold_out), buy_url
+            FROM file('{path}', JSONEachRow, 'snapshot_ts String, theatre_id String,
+                 theatre_name String, film_id UInt32, film String, session_id UInt32, start String,
+                 auditorium String, experience String, seats_remaining Nullable(UInt16),
+                 sold_out Bool, buy_url String')""")
         seats = path.replace(".sessions.jsonl", ".seats.jsonl")
         if os.path.exists(seats) and os.path.getsize(seats) > 0:
             d.exec(f"""INSERT INTO houselights.seats
                 SELECT parseDateTimeBestEffort(snapshot_ts), theatre_id, theatre_name, session_id,
                        parseDateTimeBestEffort(session_start), row, seat, seat_id, col, seat_type,
                        status
-                FROM file('{seats}', JSONEachRow)""")
+                FROM file('{seats}', JSONEachRow, 'snapshot_ts String, theatre_id String,
+                     theatre_name String, session_id UInt32, session_start String, row String,
+                     seat String, seat_id String, col Nullable(UInt16), seat_type String,
+                     status String')""")
         d.exec(f"INSERT INTO houselights.loaded VALUES ('{p}')")
         n += 1
     return n

@@ -54,13 +54,13 @@ def engagement_overview() -> dict:
     the calendar)."""
     latest = "(SELECT max(snapshot_ts) FROM houselights.sessions)"
     film = _rows(f"""
-        SELECT theatre_name, count() AS sessions, sum(seats_remaining) AS seats_remaining,
+        SELECT theatre_name, count() AS sessions, sum(seats_remaining) AS seats_left,
                countIf(sold_out = 1) AS sold_out_sessions,
                toString(min(start)) AS first_show, toString(max(start)) AS last_show,
                round(avg(seats_remaining), 1) AS avg_seats_remaining_per_session
         FROM houselights.sessions
         WHERE film_id = {FILM_ID} AND snapshot_ts = {latest}
-        GROUP BY theatre_name ORDER BY seats_remaining ASC""")
+        GROUP BY theatre_name ORDER BY seats_left ASC""")
     others = _rows(f"""
         SELECT theatre_name, toString(max(start)) AS other_films_bookable_until,
                uniq(film) AS other_films
@@ -77,7 +77,7 @@ def sellthrough_by_day(theatre_name_like: str = "") -> dict:
     where = f"AND theatre_name ILIKE '%{theatre_name_like}%'" if theatre_name_like else ""
     rows = _rows(f"""
         SELECT theatre_name, toDate(start) AS show_date, toDayOfWeek(start) AS iso_weekday,
-               count() AS sessions, sum(seats_remaining) AS seats_remaining,
+               count() AS sessions, sum(seats_remaining) AS seats_left,
                countIf(sold_out = 1) AS sold_out
         FROM houselights.sessions
         WHERE film_id = {FILM_ID} AND snapshot_ts = (SELECT max(snapshot_ts) FROM houselights.sessions)
@@ -91,8 +91,8 @@ def row_demand(theatre_name_like: str = "Vaughan") -> dict:
     watched film at a seat-level house (latest snapshot). Uses the row_sellthrough materialized
     view. Reveals the back-to-front selling pattern and where the price signal is."""
     rows = _rows(f"""
-        SELECT row, sum(taken) AS taken, sum(free) AS free,
-               round(100 * sum(taken) / (sum(taken) + sum(free)), 1) AS pct_taken
+        SELECT row, sum(taken) AS taken_seats, sum(free) AS free_seats,
+               round(100 * taken_seats / (taken_seats + free_seats), 1) AS pct_taken
         FROM houselights.row_sellthrough
         WHERE theatre_name ILIKE '%{theatre_name_like}%'
           AND snapshot_ts = (SELECT max(snapshot_ts) FROM houselights.seats)
