@@ -1,0 +1,4 @@
+data/chdb/
+__pycache__/
+*.pyc
+.env

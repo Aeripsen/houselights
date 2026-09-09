@@ -1,0 +1,17 @@
+{
+  "film_id": 37617,
+  "film_name": "The Odyssey",
+  "experience_tag": "70mm",
+  "theatres": {
+    "7408": "Cineplex Vaughan (IMAX 70mm)",
+    "7420": "Cineplex Square One (IMAX 70mm)",
+    "1405": "Cineplex Langley BC (IMAX 70mm)",
+    "1409": "Cineplex Riverport BC (IMAX 70mm)",
+    "3401": "Scotiabank Chinook Calgary (IMAX 70mm)",
+    "3403": "Scotiabank Edmonton (IMAX 70mm)",
+    "5130": "Scotiabank Halifax (IMAX 70mm)",
+    "9406": "Banque Scotia Montreal (IMAX 70mm)"
+  },
+  "seat_level_theatres": ["7408", "7420"],
+  "good_rows": ["F", "G", "H", "I", "J"]
+}

@@ -1,0 +1,6 @@
+google-adk>=1.0
+google-genai
+chdb>=3.0
+clickhouse-connect
+fastapi
+uvicorn
